@@ -29,12 +29,12 @@ class LookupQueue(object):
     
     def push(self, *items):
         for item in items:
-            if item not in self.s:
+            if item['link'] not in self.s:
                 if self.containsKeyword(item):
                     if len(self.q) == self.size:
                         self.pop()
-                    self.s.add(item)
-                    self.q.append(item)
+                    self.s.add(item['link'])
+                    self.q.append(item['link'])
                     return item
 
 
@@ -67,15 +67,22 @@ class LookupQueue(object):
 
 
 
-def main(query, opts):
+def main(opts):
     """
     Indefinitely cycles through the queries provided to the program,
     and extracts the new apartment information.
+
     """
+
+    # The query URL now comes from the conf.py file. I rarely need to change it, and
+    # didn't want to have to chase it down if it somehow left my bash history.
+    query = conf.CRAIGS_URL
+
     queue = LookupQueue(opts.memory)
+
     while True:
         listings = craigslist.fetch_with_pages_back(query, pages=opts.pages)
-        new_listings = [l for l in listings if queue.push(l['link'])]
+        new_listings = [l for l in listings if queue.push(l)]
 
         # # If you just want to print out the relevant posts...
         # for listing in new_listings:
@@ -99,8 +106,38 @@ def process_new(listings):
     pass
 
 
+def get_msg( new_listings, query ):
+    """Create the listing summary email. Don't forget to add the relevant information into
+    conf.py
+    """
+    subject = "%d New Apartments to Investigate" % (len(new_listings))
+    header = "From: %s\nTo: %s\nSubject: %s\n\n" % (conf.SENDER, conf.RECIPIENTS, subject)
+    body = header+"\n\n".join(["%(date)s %(title)s\n%(link)s"%(item) for item in new_listings])  
+    return body    
+
+
+def send_email( sender, recipients, msg ):
+    """Send the email. Don't forget to add the relevant information into conf.py
+    """
+    session = smtplib.SMTP(conf.SMTP_SERVER)
+    session.starttls()
+    session.login(conf.SMTP_USER, conf.SMTP_PASS)
+    smtpresult = session.sendmail(sender, recipients, msg)
+  
+    if smtpresult:
+        errstr = ""
+        for recip in smtpresult.keys():
+            errstr = """Could not delivery mail to: %s
+  
+  Server said: %s
+  %s
+  
+  %s""" % (recip, smtpresult[recip][0], smtpresult[recip][1], errstr)
+        raise smtplib.SMTPException, errstr
+
+
 if __name__ == '__main__':
-    USAGE = '%prog [options] <url>'
+    USAGE = "usage: %prog [options]"
     parser = optparse.OptionParser(usage=USAGE)
     parser.add_option('-m', '--memory', dest='memory', type='int', default=1000,
             help='number of historical items against which to test for uniqueness (set high)')
@@ -111,16 +148,14 @@ if __name__ == '__main__':
 			the default format is '${date}\\t${title}'")
     parser.add_option('-p', '--pages', dest='pages', default=1, type='int',
             help="the number of pages back from this url, if possible, up to 10")
-    opts, args = parser.parse_args()
-   
-    if len(args)>1 or len(args)<0:
-        print "Please provide exactly one url."
-        sys.exit(1)
+
+    (opts, args) = parser.parse_args()
+
     if opts.pages<0 or opts.pages>10:
         print "Ten pages back maximum."
         sys.exit(1)
     
     try:
-        main(args[0], opts)
+        main(opts)
     except KeyboardInterrupt:
         print "Goodbye!"

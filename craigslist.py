@@ -1,6 +1,7 @@
 """
-craigsuck, a Craigslist RSS poller.
+Craigslist RSS poller.
 Copyright (c) 2011. Jake Brukhman <jbrukh@gmail.com>. See LICENSE. 
+Modified April 2012 by Pat O'Keefe <patokeefe1@gmail.com>
 """
 
 from BeautifulSoup import BeautifulStoneSoup

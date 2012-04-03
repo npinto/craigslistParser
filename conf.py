@@ -1,4 +1,3 @@
-
 #
 # SMTP information. Yeah, the password needs to be in plaintext. Keep this close to the chest.
 #
@@ -21,4 +20,4 @@ CRAIGS_URL = "http://sfbay.craigslist.org/search/apa?query=&srchType=A&minAsk=20
 #
 # Keywords. At least one needs to be present in the post title for an email to be generated.
 #
-KEYWORDS = ['soma', 'south of market', 'patero', 'mission', 'south beach', 'union square', 'hayes', 'alamo', 'western addition', 'noe']
+KEYWORDS = ['soma', 'south of market', 'potrero', 'mission', 'south beach', 'union square', 'hayes', 'alamo', 'western addition', 'noe']

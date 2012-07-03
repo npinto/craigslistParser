@@ -2,14 +2,14 @@
 
 """
 Craigslist RSS poller.
-Copyright (c) 2011. Jake Brukhman <jbrukh@gmail.com>. See LICENSE. 
+Copyright (c) 2011. Jake Brukhman <jbrukh@gmail.com>. See LICENSE.
 Modified April 2012 by Pat O'Keefe <patokeefe1@gmail.com>
 """
 
 import craigslist
 import optparse
 import time
-import sys 
+import sys
 import smtplib
 import conf
 from string import Template
@@ -26,7 +26,7 @@ class LookupQueue(object):
         self.s = set()
         self.q = []
         self.size = size
-    
+
     def push(self, *items):
         for item in items:
             if item['link'] not in self.s:
@@ -46,18 +46,18 @@ class LookupQueue(object):
                 return True
         return False
 
-        
+
     def pop(self):
         item = self.q.pop(0)
         self.s.remove(item)
         return item
-        
+
     def __contains__(self, item):
         return item in self.s
-    
+
     def __len__(self):
         return len(self.q)
-        
+
     def __str__(self):
         return self.q.__str__()
 
@@ -91,6 +91,7 @@ def main(opts):
         # Attempt to send an email containing the new posts
         if len(new_listings) > 0:
             msg = get_msg(new_listings, query)
+            print msg
             try:
                 send_email(conf.SENDER, conf.RECIPIENTS.split(';'), msg)
             except:
@@ -112,26 +113,34 @@ def get_msg( new_listings, query ):
     """
     subject = "%d New Apartments to Investigate" % (len(new_listings))
     header = "From: %s\nTo: %s\nSubject: %s\n\n" % (conf.SENDER, conf.RECIPIENTS, subject)
-    body = header+"\n\n".join(["%(date)s %(title)s\n%(link)s"%(item) for item in new_listings])  
-    return body    
+    body = header+"\n\n".join(["%(date)s %(title)s\n%(link)s"%(item) for item in new_listings])
+    return body
 
 
 def send_email( sender, recipients, msg ):
     """Send the email. Don't forget to add the relevant information into conf.py
     """
+
+    from gmail import Gmail
+    gm = Gmail(conf.SMTP_USER, conf.SMTP_PASS)
+    print recipients
+    gm.mail(recipients[0], 'alert palo alto', msg[:100])
+    gm.mail(recipients[1], 'alert palo alto', msg)
+    return
+
     session = smtplib.SMTP(conf.SMTP_SERVER)
     session.starttls()
     session.login(conf.SMTP_USER, conf.SMTP_PASS)
     smtpresult = session.sendmail(sender, recipients, msg)
-  
+
     if smtpresult:
         errstr = ""
         for recip in smtpresult.keys():
             errstr = """Could not delivery mail to: %s
-  
+
   Server said: %s
   %s
-  
+
   %s""" % (recip, smtpresult[recip][0], smtpresult[recip][1], errstr)
         raise smtplib.SMTPException, errstr
 
@@ -141,7 +150,7 @@ if __name__ == '__main__':
     parser = optparse.OptionParser(usage=USAGE)
     parser.add_option('-m', '--memory', dest='memory', type='int', default=1000,
             help='number of historical items against which to test for uniqueness (set high)')
-    parser.add_option('-s', '--sleep', dest='sleep', type='int', default=30, 
+    parser.add_option('-s', '--sleep', dest='sleep', type='int', default=30,
             help='polling period, in seconds')
     parser.add_option('-f', '--format', dest='format', default='${date}\t${title}', type='string',
             help="output format, using Python formatting; available fields are ['date', 'title', 'link'] and \
@@ -151,10 +160,24 @@ if __name__ == '__main__':
 
     (opts, args) = parser.parse_args()
 
+    # init GMail object with user/pass
+    from getpass import getpass
+    from os import environ
+    print "*"*80
+    username = environ.get('CL_U', None)
+    if username is None:
+        username = raw_input("Gmail account name: ")
+    password = environ.get('CL_P', None)
+    if password is None:
+        password = getpass("Password: ")
+    conf.SMTP_USER = username
+    conf.SMTP_PASS = password
+    print "*"*80
+
     if opts.pages<0 or opts.pages>10:
         print "Ten pages back maximum."
         sys.exit(1)
-    
+
     try:
         main(opts)
     except KeyboardInterrupt:
